@@ -10,6 +10,7 @@
 # Groq API --> Line 1481
 # Poe Wrapper --> Line 1663
 # Local LLM with LM studio --> Line 1840
+# Clean Errors --> Line 2023
 
 #----------- Installing packages -------------
 #[cmd] conda activate .conda
@@ -2013,6 +2014,57 @@ def handle_LMstudio(excel_file_path: str, llm: str, overall_prompt:str,
 #                               number_of_task_to_save=number_of_task_to_save, 
 #                               request_timeout=request_timeout,
 #                               model_tempreature=model_tempreature, model_max_tokens=model_max_tokens,
+
+
+
+
+
+
+
+# ------------- Clean Errors --------------------
+# Note: As I got errors such as request limit, and coroption in parsing of the structured outputs, I prepared this code to clean the errors, and then run the generation again. 4
+import pandas as pd
+
+def clean_error_rows(excel_file_path, target_column):
+    # Read the Excel file into a DataFrame
+    df = pd.read_excel(excel_file_path)
+    
+    # Initialize a flag to track if any changes are made
+    changes_made = False
+    
+    # Get the prefix from the target column (e.g., 'gpt-4-0613' from 'gpt-4-0613_answer')
+    prefix = target_column.split('_')[0]
+    
+    # Find columns to be cleared based on the prefix
+    columns_to_clear = [col for col in df.columns if col.startswith(prefix)]
+    
+    i=0
+    # Iterate through the DataFrame to find rows with the specified error
+    for index, row in df.iterrows():
+        if str(row[target_column]).startswith('ERROR in response generation: Error code: 429') or str(row[target_column]).startswith( 'ERROR in response generation: Connection error.') or str(row[target_column]).startswith( 'ERROR in response generation: request timeout'):
+            # Clear the content of all specified columns for this row
+            for col in columns_to_clear:
+                df.at[index, col] = None
+            i+=1
+            changes_made = True
+    
+    # If changes were made, clear the content of the last row in specified columns
+    if changes_made:
+        last_index = df.index[-1]
+        for col in columns_to_clear:
+            df.at[last_index, col] = None
+    
+    # Save the modified DataFrame back to the Excel file
+    df.to_excel(excel_file_path, index=False)
+    print("Excel file updated.")
+    print(f'     {i} rows with Error 429 were removed and stored at {excel_file_path}' )
+    
+    return i
+
+# Example usage
+#excel_file_path = r"C:\Users\LEGION\Documents\GIT\LLM_answer_GIBoard\DO_NOT_PUBLISH\ACG self asses\E0P1-MT1024-GiveModelTimetoThink.xlsx"
+#target_column = r'gpt-4-0613_answer'
+#clean_error_rows(excel_file_path, target_column)
 #                                )
 
 
